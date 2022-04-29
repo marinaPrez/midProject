@@ -10,37 +10,28 @@ terraform {
 }
 
 provider "aws" {
-  profile = "IT"
-  region  = "us-west-2"
+  region = var.region
 }
 
-resource "aws_vpc" "wiskey_vpc" {
+###########################
+#create vpc
+##########################
+
+resource "aws_vpc" "oppschool_vpc" {
   cidr_block       = "10.0.0.0/16"
   instance_tenancy = "default"
-#  availability_zone = data.aws_availability_zones.available.names[0]
   tags = {
     Name = "Main VPC"
   }
 }
-####################################
-#privet subnets
-###################################
 
-resource "aws_subnet" "privet" {
-  vpc_id     = aws_vpc.wiskey_vpc.id
-  cidr_block = "10.0.2.0/24"
-  tags = {
-    Name = "Privet Subnet"
-  }
-}
 #######################################
 #public subnets
 #####################################
 
-
 resource "aws_subnet" "public" {
   count      = 2
-  vpc_id     = aws_vpc.wiskey_vpc.id
+  vpc_id     = aws_vpc.oppschool_vpc.id
   cidr_block = var.public_subnet[count.index]
   availability_zone = data.aws_availability_zones.available.names[count.index]
   tags = {
@@ -48,20 +39,31 @@ resource "aws_subnet" "public" {
   }
 }
 
+####################################
+#private subnets
+###################################
 
+resource "aws_subnet" "private" {
+  count      = 2
+  vpc_id     = aws_vpc.oppschool_vpc.id
+  cidr_block = var.private_subnet[count.index]
+  availability_zone = data.aws_availability_zones.available.names[count.index]
+  tags = {
+    Name = "Private Subnet"
+  }
+}
 
-
-#https://hands-on.cloud/terraform-managing-aws-vpc-creating-private-subnets/
 ###################
 #internet gateway
 ###################
 
 resource "aws_internet_gateway" "ing" {
-   vpc_id     = aws_vpc.wiskey_vpc.id
+   vpc_id     = aws_vpc.oppschool_vpc.id
    tags = {
     Name = "Public Subnet"
   }
 }
+
 ##########################
 #Elastic IP for NAT Gateway
 ##########################
@@ -72,6 +74,7 @@ resource "aws_eip" "nat_eip" {
     Name = "NAT gateway EIP"
     }
 }
+
 ###################################
 #create NAT gateway
 ###################################
@@ -92,7 +95,7 @@ resource "aws_nat_gateway" "nat_gw" {
 
 resource "aws_route_table" "public" {
   count = 1
-  vpc_id = aws_vpc.wiskey_vpc.id
+  vpc_id = aws_vpc.oppschool_vpc.id
   route {
      cidr_block = "0.0.0.0/0" 
      gateway_id = aws_internet_gateway.ing.*.id[count.index]
@@ -108,9 +111,9 @@ resource "aws_route_table_association" "public" {
 }
 
 
-resource "aws_route_table" "privat" {
+resource "aws_route_table" "private" {
   count = 1
-  vpc_id = aws_vpc.wiskey_vpc.id
+  vpc_id = aws_vpc.oppschool_vpc.id
   route {
      cidr_block = "0.0.0.0/0"
      gateway_id = aws_nat_gateway.nat_gw.*.id[count.index]
@@ -121,11 +124,9 @@ resource "aws_route_table" "privat" {
 }
 resource "aws_route_table_association" "private" {
   count = 1
-  subnet_id      = aws_subnet.privet.*.id[count.index]
-  route_table_id = aws_route_table.privat.*.id[count.index]
+  subnet_id      = aws_subnet.private.*.id[count.index]
+  route_table_id = aws_route_table.private.*.id[count.index]
 }
-
-
 
 
 #####################
@@ -135,13 +136,14 @@ resource "aws_route_table_association" "private" {
 
 resource "aws_security_group" "web_sg" {
   name        = "web sg"
-  vpc_id      = aws_vpc.wiskey_vpc.id
+  vpc_id      = aws_vpc.oppschool_vpc.id
   description = "Allow ssh and standard http/https ports inbound and everything outbound"
   tags = {
     "Terraform" = "true"
     }
 
 }
+
 
 
 resource "aws_security_group_rule" "ingress_80" {
@@ -167,8 +169,6 @@ resource "aws_security_group_rule" "ingress_22" {
 }
 
 
-
-
 resource "aws_security_group_rule" "egress" {
     type =      "egress"
     from_port   = 0
@@ -178,22 +178,21 @@ resource "aws_security_group_rule" "egress" {
     security_group_id = "${aws_security_group.web_sg.id}"
 }
 
-
 ##################################
 # create ssh keys
 #################################
 
-resource "tls_private_key" "cloud_key" {
+resource "tls_private_key" "oppschool_key" {
   algorithm = "RSA"
   rsa_bits  = 2048
 }
-resource "aws_key_pair" "cloud_key" {
-  key_name   = "cloud_key"
-  public_key = tls_private_key.cloud_key.public_key_openssh
+resource "aws_key_pair" "oppschool_key" {
+  key_name   = "demo"
+  public_key = tls_private_key.oppschool_key.public_key_openssh
 }
 # Save generated key pair locally
   resource "local_file" "server_key" {
-  sensitive_content  = tls_private_key.cloud_key.private_key_pem
+  sensitive_content  = tls_private_key.oppschool_key.private_key_pem
   filename           = "private.pem"
 }
 
@@ -201,17 +200,12 @@ resource "aws_key_pair" "cloud_key" {
 #create instance profile
 #####################################
 
-resource "aws_iam_instance_profile" "web_profile_cloud" {
-  name = "web_profile_cloud"
-  role = "EC2_admin"
-  #role  = "s3_read_role"
+resource "aws_iam_instance_profile" "web_profile" {
+  name = "web_profile"
+  role = "opsScool_role"
 }
 
-
-
-
-
-####################################
+###################################
 # create web servers
 ###################################
 resource "aws_instance" "web-server" {
@@ -220,22 +214,20 @@ resource "aws_instance" "web-server" {
   instance_type            = "t3.micro"
   vpc_security_group_ids   = ["${aws_security_group.web_sg.id}"]
   subnet_id                = aws_subnet.public.*.id[count.index]
-  key_name                = "${aws_key_pair.cloud_key.key_name}"
+  key_name                = "${aws_key_pair.oppschool_key.key_name}"
   associate_public_ip_address = true
-  iam_instance_profile = "${aws_iam_instance_profile.web_profile_cloud.name}"
+  iam_instance_profile = "${aws_iam_instance_profile.web_profile.name}"
   tags = {
     Name       = "Web_Server_${count.index}"
     Purpose    = "web server"
     Owner      = "Marina"
   }
-
    # root disk
   root_block_device {
     volume_size           = 10
     volume_type           = "gp2"
     encrypted             = false
     }
-
    # data disk
   ebs_block_device {
     device_name           = "/dev/sdb"
@@ -243,29 +235,24 @@ resource "aws_instance" "web-server" {
     volume_type           = "gp2"
     encrypted             = true
   }
-
-user_data = <<EOF
+ user_data = <<EOF
 #!bin/bash
 sudo amazon-linux-extras install nginx1 -y
 sudo systemctl start nginx
-echo "Welcome to Grandpa's Whiskey at  $HOSTNAME " | sudo tee /usr/share/nginx/html/index.html
-sudo sh -c 'echo -e "#!/bin/bash \nsudo aws s3 cp /var/log/nginx/access.log  s3://terraform-bucket-maya/logs" > /etc/cron.hourly/upload_to_s3.sh'
-sudo chmod +x /etc/cron.hourly/upload_to_s3.sh
+echo "Welcome to  $HOSTNAME " | sudo tee /usr/share/nginx/html/index.html
 EOF
-
 }
 
 output "ec2_global_ips" {
   value = ["${aws_instance.web-server.*.public_ip}"]
 }
 
-
 #############################
 #create load balancer
 ############################
 
 resource "aws_lb" "web-servers" {
-  name                       = "webServersLB-cloud"
+  name                       = "webServersLB"
   internal                   = false
   load_balancer_type         = "application"
   subnets                    = aws_subnet.public.*.id
@@ -287,13 +274,11 @@ resource "aws_lb_listener" "web" {
      }
 }
 
-
-
 resource "aws_lb_target_group" "web" {
-  name     = "web-target-group-cloud"
+  name     = "web-target-group"
   port     = 80
   protocol = "HTTP"
-  vpc_id   = aws_vpc.wiskey_vpc.id
+  vpc_id   = aws_vpc.oppschool_vpc.id
 
   health_check {
     enabled = true
@@ -326,7 +311,7 @@ resource "aws_instance" "db-server" {
   ami                      = "ami-0b28dfc7adc325ef4"
   instance_type            = "t3.micro"
   vpc_security_group_ids   = ["${aws_security_group.db_sg.id}"]
-  subnet_id                = aws_subnet.privet.id
+  subnet_id                = aws_subnet.private.*.id[count.index]
   associate_public_ip_address = false
   tags = {
     Name       = "DB_Server_${count.index}"
@@ -337,13 +322,14 @@ resource "aws_instance" "db-server" {
 
 
 resource "aws_security_group" "db_sg" {
-  vpc_id = aws_vpc.wiskey_vpc.id
+  vpc_id = aws_vpc.oppschool_vpc.id
   name   = "DB-sg"
 
   tags = {
     "Name" = "DB-sg"
   }
 }
+
 
 resource "aws_security_group_rule" "DB_ssh" {
   description       = "allow ssh access from anywhere"
