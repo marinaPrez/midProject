@@ -62,7 +62,7 @@ resource "aws_key_pair" "jenkins_ec2_key" {
 
 resource "aws_instance" "jenkins_server" {
   ami = "ami-0cb4e786f15603b0d"
-  instance_type = "t3.micro"
+  instance_type = "t2.micro"
   key_name = aws_key_pair.jenkins_ec2_key.key_name
   subnet_id                = aws_subnet.public.*.id[0]
   tags = {Name = "Jenkins Server"}
@@ -80,8 +80,9 @@ resource "aws_instance" "jenkins_server" {
     
     inline = [
       "sudo apt-get update -y",
-      "sudo apt install docker.io -y",
+      "sudo apt install docker.io  -y",
       "sudo systemctl start docker",
+      "sudo apt install openjdk-11-jre-headless -y",
       "sudo systemctl enable docker",
       "sudo usermod -aG docker ubuntu",
       "mkdir -p ${local.jenkins_home}",
@@ -93,4 +94,45 @@ resource "aws_instance" "jenkins_server" {
       "sudo docker run -d --restart=always -p 8080:8080 -p 50000:50000 -v ${local.jenkins_home_mount} -v ${local.docker_sock_mount} --env ${local.java_opts} jenkins/jenkins"
     ]
   }
+}
+
+
+resource "aws_instance" "jenkins_node" {
+  ami = "ami-0cb4e786f15603b0d"
+  instance_type = "t2.micro"
+  key_name = aws_key_pair.jenkins_ec2_key.key_name
+  subnet_id                = aws_subnet.public.*.id[0]
+  tags = {Name = "Jenkins Node"}
+  associate_public_ip_address = true
+  vpc_security_group_ids = [aws_security_group.jenkins.id]
+
+ connection {
+    host = aws_instance.jenkins_node.public_ip
+    user = "ubuntu"
+    private_key = file("jenkins_ec2_key")
+  }
+
+  provisioner "remote-exec" {
+
+    inline = [
+      "sudo apt-get update -y",
+      "sudo apt install docker.io git -y",
+      "sudo systemctl start docker",
+      "sudo apt install openjdk-11-jre-headless -y",
+      "sudo systemctl enable docker",
+      "sudo usermod -aG docker ubuntu",
+      "mkdir -p ${local.jenkins_home}",
+      "sudo chown -R 1000:1000 ${local.jenkins_home}",
+      #"curl http://35.166.247.74:8080/swarm/swarm-client.jar -o swarm-client.jar"
+    ]
+  }
+}
+
+
+output "Jenkins_server" {
+  value = aws_instance.jenkins_server.public_ip
+}
+
+output "jenkins_agent" {
+  value = aws_instance.jenkins_node.public_ip
 }
