@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kandula-service-loadbalancer
+spec:
+  type: LoadBalancer
+  selector:
+    app: opsschool-app-marina
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
