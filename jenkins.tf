@@ -69,7 +69,6 @@ resource "aws_instance" "jenkins_server" {
   associate_public_ip_address = true
   #security_groups = [ aws_security_group.jenkins.name ]
   vpc_security_group_ids = [aws_security_group.jenkins.id]
-  
 
  provisioner "file" {
     source      = "scripts/configure_jenkins.sh"
@@ -110,8 +109,9 @@ resource "aws_instance" "jenkins_server" {
 
    provisioner "remote-exec" {
     inline = [
+       "echo whoami"
        #"curl http://localhost:8080/jnlpJars/jenkins-cli.jar -o jenkins-cli.jar",
-      "echo 'installing plugins'; java -jar jenkins-cli.jar -s http://localhost:8080/ -webSocket install-plugin Git GitHub github-branch-source  pipeline-model-extensions build-monitor-plugin docker-workflow Swarm -deploy"
+#      "echo 'installing plugins'; java -jar jenkins-cli.jar -s http://localhost:8080/ -webSocket install-plugin Git GitHub github-branch-source  pipeline-model-extensions build-monitor-plugin docker-workflow Swarm -deploy"
     ]
   }
 
@@ -144,8 +144,8 @@ resource "aws_instance" "jenkins_node" {
       "sudo usermod -aG docker ubuntu",
       "mkdir -p ${local.jenkins_home}",
       "sudo chown -R 1000:1000 ${local.jenkins_home}",
-      "curl http://${aws_instance.jenkins_server.public_ip}:8080/swarm/swarm-client.jar -o swarm-client.jar",
-      "java -jar swarm-client.jar -url http://${aws_instance.jenkins_server.public_ip}:8080 -webSocket -name node1 -disableClientsUniqueId"
+     # "curl http://${aws_instance.jenkins_server.public_ip}:8080/swarm/swarm-client.jar -o swarm-client.jar",
+     # "java -jar swarm-client.jar -url http://${aws_instance.jenkins_server.public_ip}:8080 -webSocket -name node1 -disableClientsUniqueId"
     ]
   }
 }
