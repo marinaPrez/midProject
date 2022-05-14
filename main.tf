@@ -34,8 +34,9 @@ resource "aws_subnet" "public" {
   vpc_id     = aws_vpc.oppschool_vpc.id
   cidr_block = var.public_subnet[count.index]
   availability_zone = data.aws_availability_zones.available.names[count.index]
+  map_public_ip_on_launch = true
   tags = {
-    Name = "Public Subnet"
+    Name = "Public Subnet_${count.index}"
   }
 }
 
@@ -49,7 +50,7 @@ resource "aws_subnet" "private" {
   cidr_block = var.private_subnet[count.index]
   availability_zone = data.aws_availability_zones.available.names[count.index]
   tags = {
-    Name = "Private Subnet"
+    Name = "Private Subnet_${count.index}"
   }
 }
 

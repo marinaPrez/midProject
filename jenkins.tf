@@ -69,15 +69,27 @@ resource "aws_instance" "jenkins_server" {
   associate_public_ip_address = true
   #security_groups = [ aws_security_group.jenkins.name ]
   vpc_security_group_ids = [aws_security_group.jenkins.id]
-  
+
+ provisioner "file" {
+    source      = "scripts/configure_jenkins.sh"
+    destination = "/home/ubuntu/configure_jenkins.sh"
+    connection {
+      host        = aws_instance.jenkins_server.public_ip
+      user        = "ubuntu"
+      private_key = file("jenkins_ec2_key")
+    }
+  }
+
+
  connection {
     host = aws_instance.jenkins_server.public_ip
     user = "ubuntu"
     private_key = file("jenkins_ec2_key")
   }
 
+
+
   provisioner "remote-exec" {
-    
     inline = [
       "sudo apt-get update -y",
       "sudo apt install docker.io  -y",
@@ -94,6 +106,15 @@ resource "aws_instance" "jenkins_server" {
       "sudo docker run -d --restart=always -p 8080:8080 -p 50000:50000 -v ${local.jenkins_home_mount} -v ${local.docker_sock_mount} --env ${local.java_opts} jenkins/jenkins"
     ]
   }
+
+   provisioner "remote-exec" {
+    inline = [
+       "echo whoami"
+       #"curl http://localhost:8080/jnlpJars/jenkins-cli.jar -o jenkins-cli.jar",
+#      "echo 'installing plugins'; java -jar jenkins-cli.jar -s http://localhost:8080/ -webSocket install-plugin Git GitHub github-branch-source  pipeline-model-extensions build-monitor-plugin docker-workflow Swarm -deploy"
+    ]
+  }
+
 }
 
 
@@ -123,7 +144,8 @@ resource "aws_instance" "jenkins_node" {
       "sudo usermod -aG docker ubuntu",
       "mkdir -p ${local.jenkins_home}",
       "sudo chown -R 1000:1000 ${local.jenkins_home}",
-      #"curl http://35.166.247.74:8080/swarm/swarm-client.jar -o swarm-client.jar"
+     # "curl http://${aws_instance.jenkins_server.public_ip}:8080/swarm/swarm-client.jar -o swarm-client.jar",
+     # "java -jar swarm-client.jar -url http://${aws_instance.jenkins_server.public_ip}:8080 -webSocket -name node1 -disableClientsUniqueId"
     ]
   }
 }
