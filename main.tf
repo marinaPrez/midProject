@@ -96,25 +96,25 @@ resource "aws_nat_gateway" "nat_gw" {
 #####################################
 
 resource "aws_route_table" "public" {
-  count = 1
+#  count = 1
   vpc_id = aws_vpc.oppschool_vpc.id
   route {
      cidr_block = "0.0.0.0/0" 
-     gateway_id = aws_internet_gateway.ing.*.id[count.index]
+     gateway_id = aws_internet_gateway.ing.id
      }
   tags = {
     "Name" = "Public route table"
   }
 }
 resource "aws_route_table_association" "public" {
-  count = 1
+  count = 2
   subnet_id      = aws_subnet.public.*.id[count.index]
-  route_table_id = aws_route_table.public.*.id[count.index]
+  route_table_id = aws_route_table.public.id
 }
 
 
 resource "aws_route_table" "private" {
-  count = 1
+  count = 2
   vpc_id = aws_vpc.oppschool_vpc.id
   route {
      cidr_block = "0.0.0.0/0"
@@ -125,7 +125,7 @@ resource "aws_route_table" "private" {
   }
 }
 resource "aws_route_table_association" "private" {
-  count = 1
+  count = 2
   subnet_id      = aws_subnet.private.*.id[count.index]
   route_table_id = aws_route_table.private.*.id[count.index]
 }
