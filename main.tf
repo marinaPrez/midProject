@@ -158,3 +158,4 @@ resource "aws_iam_instance_profile" "web_profile" {
   role = "opsScool_role"
 }
 
+
