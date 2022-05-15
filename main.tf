@@ -70,6 +70,7 @@ resource "aws_internet_gateway" "ing" {
 ##########################
 resource "aws_eip" "nat_eip" {
    vpc = true
+   count = 2
    depends_on = [aws_internet_gateway.ing]
    tags = {
     Name = "NAT gateway EIP"
@@ -81,11 +82,11 @@ resource "aws_eip" "nat_eip" {
 ###################################
 
 resource "aws_nat_gateway" "nat_gw" {
-  count = 1
+  count = 2
   allocation_id = aws_eip.nat_eip.*.id[count.index]
   subnet_id     = aws_subnet.public.*.id[count.index]
   tags = {
-    Name = "gw NAT"
+    Name = "gw_NAT_${count.index}"
   }
   depends_on = [aws_internet_gateway.ing]
 }
