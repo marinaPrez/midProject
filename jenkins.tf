@@ -139,6 +139,17 @@ resource "aws_instance" "jenkins_node" {
   associate_public_ip_address = true
   vpc_security_group_ids = [aws_security_group.jenkins.id]
 
+  provisioner "file" {
+    source      = "consul/scripts/consul-agent.sh"
+    destination = "/home/ubuntu/consul-agent.sh"
+    connection {
+      host        = aws_instance.jenkins_node.public_ip
+      user        = "ubuntu"
+      private_key = file("jenkins_ec2_key")
+    }
+  }
+
+
  connection {
     host = aws_instance.jenkins_node.public_ip
     user = "ubuntu"
@@ -156,6 +167,8 @@ resource "aws_instance" "jenkins_node" {
       "sudo usermod -aG docker ubuntu",
       "mkdir -p ${local.jenkins_home}",
       "sudo chown -R 1000:1000 ${local.jenkins_home}",
+      "chmod +x /home/ubuntu/consul-agent.sh",
+      "sudo /home/ubuntu/consul-agent.sh"
      # "curl http://${aws_instance.jenkins_server.public_ip}:8080/swarm/swarm-client.jar -o swarm-client.jar",
      # "java -jar swarm-client.jar -url http://${aws_instance.jenkins_server.public_ip}:8080 -webSocket -name node1 -disableClientsUniqueId"
     ]
