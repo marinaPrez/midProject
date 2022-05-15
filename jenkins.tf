@@ -57,7 +57,7 @@ resource "aws_security_group" "jenkins" {
 
 resource "aws_key_pair" "jenkins_ec2_key" {
   key_name = "jenkins_ec2_key"
-  public_key = file("jenkins_ec2_key.pub")
+  public_key = file("~/.ssh/ops_keys_dir/jenkins_ec2_key.pub")
 }
 
 resource "aws_instance" "jenkins_server" {
@@ -134,7 +134,8 @@ resource "aws_instance" "jenkins_node" {
   tags = {
          Name = "Jenkins Node"
          role = "Jemkins Slave"
-         }
+         port = "8080"
+         }  
   associate_public_ip_address = true
   vpc_security_group_ids = [aws_security_group.jenkins.id]
 

@@ -1,0 +1,25 @@
+---
+
+- name: apply consul dynamic registration
+  hosts: _Jenkins_Master,_Jemkins_Slave
+  remote_user: ubuntu
+
+  tasks:
+
+  - name: Install Python pip
+    apt: name={{ item }} update_cache=true state=present force_apt_get=yes
+    with_items:
+    - python3-pip
+    become: true
+  
+  - name: Install python-consul package
+    pip:
+      name: python-consul
+
+  
+  - name: Register nginx service with the local consul agent
+    community.general.consul:
+      service_name: "{{tags.role}}"
+      service_port: "{{tags.port}}"
+      tags:
+      - production

@@ -1,6 +1,7 @@
 ---
+
 - name: apply consul dynamic registration
-  hosts: _ngnx_web
+  hosts: _ngnx
   remote_user: ubuntu
 
   tasks:
@@ -19,6 +20,6 @@
   - name: Register nginx service with the local consul agent
     community.general.consul:
       service_name: "{{tags.role}}"
-      service_port: 80
+      service_port: "{{tags.port}}"
       tags:
       - production
