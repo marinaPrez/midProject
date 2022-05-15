@@ -1,0 +1,2 @@
+curl -X PUT -d @my-service-8888-curl.json http://localhost:8500/v1/agent/service/register ;echo
+curl -X PUT -d http://localhost:8500/v1/agent/service/deregister/my-service-8888 ;echo

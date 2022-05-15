@@ -1,0 +1,21 @@
+{
+  "services": [
+    {
+      "id": "yaron",
+      "name": "my-service-8888",
+      "tags": [
+        "primary"
+      ],
+      "port": 8888,
+      "checks": [
+        {
+          "id": "tcp",
+	  "name": "tcp-8888",
+	  "tcp": "localhost:8888",
+          "interval": "5s",
+          "timeout": "20s"
+        }
+      ]
+    }
+  ]
+}
